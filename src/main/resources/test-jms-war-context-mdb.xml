@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xmlns:int="http://www.springframework.org/schema/integration"
+       xmlns:int-jms="http://www.springframework.org/schema/integration/jms"
+       xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd
+                           http://www.springframework.org/schema/integration http://www.springframework.org/schema/integration/spring-integration.xsd
+                           http://www.springframework.org/schema/integration/jms http://www.springframework.org/schema/integration/jms/spring-integration-jms.xsd">
+
+
+    <bean id="jndiConnectionTemplateForEventing-MDB" class="org.springframework.jndi.JndiTemplate">
+        <property name="environment">
+            <props>
+                <prop key="java.naming.factory.initial">${java.naming.factory.initial-MDB}</prop>
+                <!--<prop key="java.naming.provider.url">${java.naming.provider.url-MDB}</prop>-->
+                <!--<prop key="java.naming.security.principal">${java.naming.security.account-MDB}</prop>-->
+                <!--<prop key="java.naming.security.credentials">${java.naming.security.credential-MDB}</prop>-->
+            </props>
+        </property>
+    </bean>
+
+    <bean id="jmsConnectionFactoryForEventing-MDB" class="org.springframework.jndi.JndiObjectFactoryBean">
+        <property name="jndiTemplate" ref="jndiConnectionTemplateForEventing-MDB"/>
+        <property name="jndiName" value="${jmsConnectionFactoryForEventing.jndiName-MDB}"/>
+    </bean>
+    <bean id="topicDestinationForEventing-MDB" class="org.springframework.jndi.JndiObjectFactoryBean">
+        <property name="jndiTemplate" ref="jndiConnectionTemplateForEventing-MDB"/>
+        <property name="jndiName" value="${topicDestinationForEventing.jndiName-MDB}"/>
+    </bean>
+    <bean id="jmsDestinationResolverForEventing-MDB" class="org.springframework.jms.support.destination.JndiDestinationResolver">
+        <property name="jndiTemplate" ref="jndiConnectionTemplateForEventing-MDB"/>
+        <property name="cache" value="true"/>
+    </bean>
+
+    <int:channel id="mdbChannel"/>
+
+    <int:gateway id="myMessageSenderMDB"
+                 service-interface="sample.war.MyMessageSender"
+                 default-request-channel="mdbChannel"/>
+
+    <int-jms:outbound-channel-adapter id="jmsOut"
+                                      channel="mdbChannel"
+                                      connection-factory="jmsConnectionFactoryForEventing-MDB"
+                                      destination="topicDestinationForEventing-MDB"
+                                      delivery-persistent="true"
+                                      explicit-qos-enabled="true"
+                                      destination-resolver="jmsDestinationResolverForEventing-MDB"/>
+
+</beans>

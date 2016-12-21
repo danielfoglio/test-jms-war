@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xmlns:int="http://www.springframework.org/schema/integration"
+       xmlns:int-jms="http://www.springframework.org/schema/integration/jms"
+       xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd
+                           http://www.springframework.org/schema/integration http://www.springframework.org/schema/integration/spring-integration.xsd
+                           http://www.springframework.org/schema/integration/jms http://www.springframework.org/schema/integration/jms/spring-integration-jms.xsd">
+
+    <bean id="jndiConnectionTemplateForEventing" class="org.springframework.jndi.JndiTemplate">
+        <property name="environment">
+            <props>
+                <prop key="java.naming.factory.initial">${java.naming.factory.initial}</prop>
+                <prop key="java.naming.provider.url">${java.naming.provider.url}</prop>
+                <prop key="java.naming.security.principal">${java.naming.security.account}</prop>
+                <prop key="java.naming.security.credentials">${java.naming.security.credential}</prop>
+            </props>
+        </property>
+    </bean>
+    <bean id="jmsConnectionFactoryForEventing" class="org.springframework.jndi.JndiObjectFactoryBean">
+        <property name="jndiTemplate" ref="jndiConnectionTemplateForEventing"/>
+        <property name="jndiName" value="${jmsConnectionFactoryForEventing.jndiName}"/>
+    </bean>
+    <bean id="topicDestinationForEventing" class="org.springframework.jndi.JndiObjectFactoryBean">
+        <property name="jndiTemplate" ref="jndiConnectionTemplateForEventing"/>
+        <property name="jndiName" value="${topicDestinationForEventing.jndiName}"/>
+    </bean>
+    <bean id="jmsDestinationResolverForEventing" class="org.springframework.jms.support.destination.JndiDestinationResolver">
+        <property name="jndiTemplate" ref="jndiConnectionTemplateForEventing"/>
+        <property name="cache" value="true"/>
+    </bean>
+
+    <int-jms:publish-subscribe-channel id="vbmsEventMainChannel"
+                                       durable="true"
+                                       topic="topicDestinationForEventing"
+                                       connection-factory="jmsConnectionFactoryForEventing"
+                                       destination-resolver="jmsDestinationResolverForEventing"
+                                       client-id="vbmsEventMainChannel"/>
+
+    <int:gateway id="myMessageSender"
+                 service-interface="sample.war.MyMessageSender"
+                 default-request-channel="vbmsEventMainChannel"/>
+
+    <bean id="myMessageListener" class="sample.war.MyMessageListener"/>
+    <int:service-activator input-channel="vbmsEventMainChannel"
+                           ref="myMessageListener"
+                           method="onMessage"/>
+
+</beans>
